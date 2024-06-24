@@ -10,6 +10,8 @@ import { Chart, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend }
 
 Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+const SERVERIP = "https://dt-model-trainer-be.onrender.com/";
+
 const UploadAndSelect = () => {
   // ... (state variables remain the same)
   const [file, setFile] = useState(null);
@@ -37,7 +39,7 @@ const UploadAndSelect = () => {
     console.log('Uploading file:', file);
 
     try {
-      const response = await axios.post('http://localhost:5000/upload', formData, {
+      const response = await axios.post(SERVERIP+'upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setColumns(response.data.columns);
@@ -55,7 +57,7 @@ const UploadAndSelect = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:5000/train', {
+      const response = await axios.post(SERVERIP+'train', {
         features,
         target,
         modelType,
@@ -72,7 +74,7 @@ const UploadAndSelect = () => {
 
   useEffect(() => {
     console.log('useEffect');
-    axios.get('http://localhost:5000') // Make a GET request to the server
+    axios.get(SERVERIP) // Make a GET request to the server
       .then((response) => {
         console.log('Response:', response.data);
       })
