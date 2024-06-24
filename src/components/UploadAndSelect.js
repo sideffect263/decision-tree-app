@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Button, Select, MenuItem, FormControl, InputLabel, Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Container, Grid, Card, CardContent, CircularProgress, Alert, IconButton
+  Container, Grid, Card, CardContent, CircularProgress, Alert, IconButton, TextField
 } from '@mui/material';
 import { UploadFile, Assessment, PlayArrow } from '@mui/icons-material';
 import { Bar } from 'react-chartjs-2';
 import { Chart, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import LoadingAnimation from './LoadingAnimation';
-
 
 Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -22,7 +21,10 @@ const UploadAndSelect = () => {
   const [columns, setColumns] = useState([]);
   const [message, setMessage] = useState('');
   const [modelResults, setModelResults] = useState(null);
-  const [loading, setLoading] = useState(false); // New state variable for loading
+  const [loading, setLoading] = useState(false);
+  const [inputData, setInputData] = useState({});
+  const [prediction, setPrediction] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -43,6 +45,7 @@ const UploadAndSelect = () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setColumns(response.data.columns);
+      setSessionId(response.data.sessionId);
       setMessage('File uploaded successfully.');
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -55,12 +58,13 @@ const UploadAndSelect = () => {
       setMessage('Please select features and target variable.');
       return;
     }
-    setLoading(true); // Set loading to true
-    setModelResults(null); // Reset model results
+    setLoading(true);
+    setModelResults(null);
     setMessage('Training model...');
 
     try {
       const response = await axios.post(SERVERIP + 'train', {
+        sessionId,
         features,
         target,
         modelType,
@@ -73,26 +77,61 @@ const UploadAndSelect = () => {
       console.error('Error training model:', error);
       setMessage('Error training model.');
     } finally {
-      setLoading(false); // Set loading to false
+      setLoading(false);
     }
+  };
+
+  const handlePredict = async () => {
+    if (Object.keys(inputData).length === 0) {
+      setMessage('Please enter data for prediction.');
+      return;
+    }
+    setLoading(true);
+    setPrediction(null);
+    setMessage('Making prediction...');
+
+    try {
+      const response = await axios.post(SERVERIP + 'predict', {
+        sessionId,
+        features,
+        data: inputData,
+      });
+
+      console.log('Prediction:', response.data);
+      setPrediction(response.data);
+      setMessage('Prediction made successfully.');
+    } catch (error) {
+      console.error('Error making prediction:', error);
+      setMessage('Error making prediction.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setInputData({
+      ...inputData,
+      [name]: value,
+    });
   };
 
   useEffect(() => {
     console.log('useEffect');
-    axios.get(SERVERIP) // Make a GET request to the server
+    axios.get(SERVERIP)
       .then((response) => {
         console.log('Response:', response.data);
       })
       .catch((error) => {
         console.error('Error:', error);
       });
-  }, []); // Only run once when the component mounts
+  }, []);
 
   const renderModelResults = () => {
     if (loading) {
       return (
-        <Box display="flex" justifyContent="center" alignItems="center" style={{ height: 100,  }}>
-          <LoadingAnimation />  
+        <Box display="flex" justifyContent="center" alignItems="center" style={{ height: 100 }}>
+          <LoadingAnimation />
         </Box>
       );
     }
@@ -159,6 +198,48 @@ const UploadAndSelect = () => {
     );
   };
 
+  const renderPredictionForm = () => {
+    if (!modelResults) return null;
+
+    return (
+      <Grid item xs={12}>
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>4. Make Predictions</Typography>
+            <Grid container spacing={2}>
+              {features.map((feature) => (
+                <Grid item xs={12} md={6} key={feature}>
+                  <TextField
+                    label={feature}
+                    name={feature}
+                    onChange={handleInputChange}
+                    fullWidth
+                  />
+                </Grid>
+              ))}
+              <Grid item xs={12}>
+                <Button
+                  onClick={handlePredict}
+                  variant="contained"
+                  color="primary"
+                  startIcon={<PlayArrow />}
+                >
+                  Predict
+                </Button>
+              </Grid>
+              {prediction && (
+                <Grid item xs={12}>
+                  <Typography variant="h6" gutterBottom>Prediction Results</Typography>
+                  <pre>{JSON.stringify(prediction, null, 2)}</pre>
+                </Grid>
+              )}
+            </Grid>
+          </CardContent>
+        </Card>
+      </Grid>
+    );
+  };
+
   return (
     <Container maxWidth="md">
       <Box my={4}>
@@ -167,7 +248,7 @@ const UploadAndSelect = () => {
           <Grid item xs={12}>
             <Card>
               <CardContent>
-                <Typography variant="h6" gutterBottom>1. Upload Dataset</Typography>
+              <Typography variant="h6" gutterBottom>1. Upload Dataset</Typography>
                 <Box display="flex" alignItems="center">
                   <input
                     accept=".csv,.xlsx"
@@ -271,9 +352,11 @@ const UploadAndSelect = () => {
               <CardContent>
                 <Typography variant="h6" gutterBottom>Model Results</Typography>
                 {renderModelResults()}
-                </CardContent>
+              </CardContent>
             </Card>
           </Grid>
+
+          {renderPredictionForm()}
         </Grid>
       </Box>
     </Container>
@@ -281,5 +364,3 @@ const UploadAndSelect = () => {
 };
 
 export default UploadAndSelect;
-
-
