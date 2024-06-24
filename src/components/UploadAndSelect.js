@@ -7,13 +7,14 @@ import {
 import { UploadFile, Assessment, PlayArrow } from '@mui/icons-material';
 import { Bar } from 'react-chartjs-2';
 import { Chart, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import LoadingAnimation from './LoadingAnimation';
+
 
 Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const SERVERIP = "https://dt-model-trainer-be.onrender.com/";
 
 const UploadAndSelect = () => {
-  // ... (state variables remain the same)
   const [file, setFile] = useState(null);
   const [features, setFeatures] = useState([]);
   const [target, setTarget] = useState('');
@@ -21,9 +22,8 @@ const UploadAndSelect = () => {
   const [columns, setColumns] = useState([]);
   const [message, setMessage] = useState('');
   const [modelResults, setModelResults] = useState(null);
-  // ... (existing functions remain the same)
+  const [loading, setLoading] = useState(false); // New state variable for loading
 
-  
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
   };
@@ -39,7 +39,7 @@ const UploadAndSelect = () => {
     console.log('Uploading file:', file);
 
     try {
-      const response = await axios.post(SERVERIP+'upload', formData, {
+      const response = await axios.post(SERVERIP + 'upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setColumns(response.data.columns);
@@ -55,9 +55,12 @@ const UploadAndSelect = () => {
       setMessage('Please select features and target variable.');
       return;
     }
+    setLoading(true); // Set loading to true
+    setModelResults(null); // Reset model results
+    setMessage('Training model...');
 
     try {
-      const response = await axios.post(SERVERIP+'train', {
+      const response = await axios.post(SERVERIP + 'train', {
         features,
         target,
         modelType,
@@ -69,6 +72,8 @@ const UploadAndSelect = () => {
     } catch (error) {
       console.error('Error training model:', error);
       setMessage('Error training model.');
+    } finally {
+      setLoading(false); // Set loading to false
     }
   };
 
@@ -84,6 +89,14 @@ const UploadAndSelect = () => {
   }, []); // Only run once when the component mounts
 
   const renderModelResults = () => {
+    if (loading) {
+      return (
+        <Box display="flex" justifyContent="center" alignItems="center" style={{ height: 100,  }}>
+          <LoadingAnimation />  
+        </Box>
+      );
+    }
+
     if (!modelResults) return null;
 
     const { mse, best_params, feature_importances } = modelResults;
@@ -253,16 +266,14 @@ const UploadAndSelect = () => {
             </Grid>
           )}
 
-          {modelResults && (
-            <Grid item xs={12}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Model Results</Typography>
-                  {renderModelResults()}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>Model Results</Typography>
+                {renderModelResults()}
                 </CardContent>
-              </Card>
-            </Grid>
-          )}
+            </Card>
+          </Grid>
         </Grid>
       </Box>
     </Container>
@@ -270,3 +281,5 @@ const UploadAndSelect = () => {
 };
 
 export default UploadAndSelect;
+
+
